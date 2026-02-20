@@ -75,6 +75,37 @@ const confidenceScore = Math.max(
     return { probabilityOfDefault, approval, confidenceScore };
   };
 
+
+  const getBankMatches = (data) => {
+  const banks = [
+    { name: "HDFC Bank", riskPreference: 75, baseRate: 11.5 },
+    { name: "ICICI Bank", riskPreference: 70, baseRate: 11 },
+    { name: "Axis Bank", riskPreference: 65, baseRate: 12 },
+    { name: "FinEdge NBFC", riskPreference: 55, baseRate: 14 }
+  ];
+
+  return banks.map((bank) => {
+    const matchScore = Math.max(
+      50,
+      100 - Math.abs(data.score - bank.riskPreference)
+    );
+
+    const interestRate =
+      data.score >= 80
+        ? bank.baseRate
+        : data.score >= 65
+        ? bank.baseRate + 1
+        : bank.baseRate + 2;
+
+    return {
+      ...bank,
+      matchScore: Math.round(matchScore),
+      interestRate,
+      maxLoan: Math.round(data.recommendedLoan * (0.9 + matchScore / 200))
+    };
+  });
+};
+
   const downloadReport = async () => {
     const lender = getLenderInsights(result);
 
@@ -404,6 +435,47 @@ const confidenceScore = Math.max(
                       )}
                     </div>
 
+                    {/* AI LENDER MATCH ENGINE */}
+<div className="mt-10 bg-white p-6 rounded-xl shadow">
+  <h3 className="text-xl font-semibold mb-6">
+    🏦 AI Lender Match Engine
+  </h3>
+
+  <div className="grid md:grid-cols-2 gap-6">
+    {getBankMatches(result)
+      .sort((a, b) => b.matchScore - a.matchScore)
+      .map((bank, index) => (
+        <div
+          key={bank.name}
+          className={`p-5 rounded-xl border ${
+            index === 0
+              ? "border-green-500 bg-green-50"
+              : "border-gray-200 bg-gray-50"
+          }`}
+        >
+          <div className="flex justify-between items-center">
+            <h4 className="font-semibold">{bank.name}</h4>
+            {index === 0 && (
+              <span className="text-xs bg-green-600 text-white px-3 py-1 rounded-full">
+                AI Recommended
+              </span>
+            )}
+          </div>
+
+          <p className="mt-2 text-sm">
+            Interest Rate: <strong>{bank.interestRate}%</strong>
+          </p>
+          <p className="text-sm">
+            Match Score: <strong>{bank.matchScore}%</strong>
+          </p>
+          <p className="text-sm">
+            Max Loan Offer: ₹{bank.maxLoan.toLocaleString()}
+          </p>
+        </div>
+      ))}
+  </div>
+</div>
+
                     <div className="text-center mt-6">
                       <button onClick={downloadReport} className="px-6 py-3 bg-green-600 text-white rounded-xl">
                         Download Loan Readiness Report (PDF)
@@ -443,6 +515,26 @@ const confidenceScore = Math.max(
             </div>
 
           </div>
+
+          {/* Competitive Positioning */}
+<div className="mt-8 bg-white p-6 rounded-xl shadow">
+  <h3 className="text-lg font-semibold mb-4">
+    Competitive Lender Positioning
+  </h3>
+
+  {getBankMatches(result)
+    .sort((a, b) => b.matchScore - a.matchScore)
+    .map((bank, index) => (
+      <div
+        key={bank.name}
+        className="flex justify-between border-b py-3 text-sm"
+      >
+        <span>{bank.name}</span>
+        <span>{bank.interestRate}%</span>
+        <span>{bank.matchScore}% Match</span>
+      </div>
+    ))}
+</div>
 
           {/* MODEL CONFIDENCE BAR */}
           <div className="bg-white p-6 rounded-xl shadow">
