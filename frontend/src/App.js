@@ -32,6 +32,7 @@ function App() {
   const [scenarioResult, setScenarioResult] = useState(null);
   const [viewMode, setViewMode] = useState("msme");
   const [loading, setLoading] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
 
   const [scenario, setScenario] = useState({
     revenueIncrease: 0,
@@ -48,9 +49,9 @@ function App() {
   };
 
   const getRiskColor = (score) => {
-    if (score >= 80) return "green";
-    if (score >= 60) return "orange";
-    return "red";
+    if (score >= 80) return "text-green-600";
+    if (score >= 60) return "text-yellow-500";
+    return "text-red-600";
   };
 
   const getLenderInsights = (data) => {
@@ -63,12 +64,41 @@ function App() {
         ? "Approve with Conditions"
         : "High Risk - Manual Review Required";
 
-    const confidenceScore = Math.min(
-      100 - Math.abs(data.debtRatio * 100 - 50),
-      95
-    );
+    const rawConfidence =
+  100 - Math.abs(data.debtRatio * 100 - 50);
+
+const confidenceScore = Math.max(
+  0,
+  Math.min(rawConfidence, 95)
+);
 
     return { probabilityOfDefault, approval, confidenceScore };
+  };
+
+  const downloadReport = async () => {
+    const lender = getLenderInsights(result);
+
+    const response = await fetch("http://localhost:8000/api/report/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        score: result.score,
+        tier: result.tier,
+        surplus: result.surplus,
+        debtRatio: result.debtRatio,
+        recommendedLoan: result.recommendedLoan,
+        probabilityOfDefault: lender.probabilityOfDefault,
+        approval: lender.approval,
+        explanation: result.explanation
+      })
+    });
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "MSME_Credit_Report.pdf";
+    a.click();
   };
 
   const callRiskEngine = async (payload) => {
@@ -179,156 +209,290 @@ function App() {
         {
           label: "Current Health",
           data: calculateHealthMetrics(result),
-          backgroundColor: "rgba(0,123,255,0.2)",
-          borderColor: "rgba(0,123,255,1)",
+          backgroundColor: "rgba(37,99,235,0.2)",
+          borderColor: "rgba(37,99,235,1)",
           borderWidth: 2
         },
         scenarioResult && {
           label: "Scenario Health",
           data: calculateHealthMetrics(scenarioResult),
-          backgroundColor: "rgba(40,167,69,0.2)",
-          borderColor: "rgba(40,167,69,1)",
+          backgroundColor: "rgba(16,185,129,0.2)",
+          borderColor: "rgba(16,185,129,1)",
           borderWidth: 2
         }
       ].filter(Boolean)
     };
 
   return (
-    <div style={{ padding: 40, maxWidth: 1000, margin: "auto", fontFamily: "Arial" }}>
-      <h2>MSME AI Financial Health Engine</h2>
+    <div
+  className={`min-h-screen transition-all duration-500 ${
+    darkMode
+      ? "bg-[#0f172a] text-gray-200"
+      : "bg-[#f6f9fc] text-gray-900"
+  }`}
+>
 
-      {/* FORM */}
-      <div style={{ marginTop: 20 }}>
-        {["revenue", "expenses", "debt", "emi"].map((field) => (
-          <input
-            key={field}
-            type="number"
-            name={field}
-            placeholder={field}
-            value={formData[field]}
-            onChange={handleChange}
-            style={{ display: "block", marginBottom: 10, width: "100%", padding: 8 }}
-          />
-        ))}
+      {/* HERO SECTION */}
+      <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 text-white py-20 px-8 text-center relative">
+        <h1 className="text-4xl md:text-5xl font-extrabold">
+          AI-Powered MSME Credit Intelligence Platform
+        </h1>
 
-        <select
-          name="volatility"
-          value={formData.volatility}
-          onChange={handleChange}
-          style={{ display: "block", marginBottom: 20, width: "100%", padding: 8 }}
-        >
-          <option value="low">Low Volatility</option>
-          <option value="medium">Medium Volatility</option>
-          <option value="high">High Volatility</option>
-        </select>
-
-        <button onClick={calculateRisk}>
-          {loading ? "Analyzing..." : "Analyze"}
-        </button>
+        <p className="mt-6 text-lg md:text-xl max-w-3xl mx-auto opacity-90">
+          Real-time Risk Scoring • Explainable AI Advisory • Scenario Simulation • Bank-Ready Reports
+        </p>
+        <button
+    onClick={() => setDarkMode(!darkMode)}
+    className="absolute top-6 right-6 bg-white text-black px-4 py-2 rounded-full shadow-md"
+     >
+      {darkMode ? "Light Mode" : "Dark Mode"}
+      </button>
       </div>
 
-      {result && (
-        <div style={{ marginTop: 30 }}>
-          {/* Toggle */}
-          <button onClick={() => setViewMode("msme")}>MSME View</button>
-          <button onClick={() => setViewMode("lender")}>Lender View</button>
+      <div className="p-8">
+        <div className="max-w-6xl mx-auto bg-white shadow-2xl rounded-2xl p-8">
 
-          <div style={{ padding: 20, background: "#f4f4f4", borderRadius: 10 }}>
+          <h2 className="text-3xl font-bold text-center">
+            MSME AI Financial Health Engine
+          </h2>
 
-            {/* MSME VIEW */}
-            {viewMode === "msme" && (
-              <>
-                <h1 style={{ color: getRiskColor(result.score) }}>
-                  {result.score}
-                </h1>
+          {/* FORM */}
+          <div className="grid md:grid-cols-2 gap-4 mt-8">
+            {["revenue", "expenses", "debt", "emi"].map((field) => (
+              <input
+                key={field}
+                type="number"
+                name={field}
+                placeholder={field}
+                value={formData[field]}
+                onChange={handleChange}
+                className="border rounded-lg p-3"
+              />
+            ))}
 
-                <p><strong>Tier:</strong> {result.tier}</p>
-                <p><strong>Recommended Loan:</strong> ₹{result.recommendedLoan}</p>
+            <select
+              name="volatility"
+              value={formData.volatility}
+              onChange={handleChange}
+              className="border rounded-lg p-3"
+            >
+              <option value="low">Low Volatility</option>
+              <option value="medium">Medium Volatility</option>
+              <option value="high">High Volatility</option>
+            </select>
+          </div>
 
-                {radarData && <Radar data={radarData} />}
+          <div className="text-center mt-6">
+            <button
+              onClick={calculateRisk}
+              className="px-6 py-3 bg-blue-600 text-white rounded-xl"
+            >
+              {loading ? "Analyzing..." : "Analyze"}
+            </button>
+          </div>
 
-                <h3>AI Advisory</h3>
-                <div style={{ whiteSpace: "pre-line" }}>
-                  {result.explanation}
+          {result && (
+            <div className="mt-12">
+              <div className="flex justify-center gap-4 mb-6">
+                <button onClick={() => setViewMode("msme")} className="px-4 py-2 bg-gray-200 rounded-lg">MSME View</button>
+                <button onClick={() => setViewMode("lender")} className="px-4 py-2 bg-gray-200 rounded-lg">Lender View</button>
+              </div>
+
+              <div className="bg-gray-50 p-8 rounded-2xl shadow-inner">
+
+                {viewMode === "msme" && (
+                  <>
+                    <div className={`text-6xl font-bold text-center ${getRiskColor(result.score)}`}>
+                      {result.score}
+                    </div>
+
+                    {/* DECISION BADGE */}
+<div className="flex justify-center mt-6">
+  {(() => {
+    const lender = getLenderInsights(result);
+
+    let bgColor = "";
+    let text = "";
+
+    if (result.score >= 80) {
+      bgColor = "bg-green-100 text-green-700 border-green-500";
+      text = "APPROVED";
+    } else if (result.score >= 65) {
+      bgColor = "bg-yellow-100 text-yellow-700 border-yellow-500";
+      text = "APPROVE WITH CONDITIONS";
+    } else {
+      bgColor = "bg-red-100 text-red-700 border-red-500";
+      text = "HIGH RISK – STABILIZATION REQUIRED";
+    }
+
+    return (
+      <div
+        className={`px-6 py-3 rounded-full border-2 font-semibold text-sm tracking-wide ${bgColor}`}
+      >
+        {text}
+      </div>
+    );
+  })()}
+</div>
+                    {/* KPI CARDS */}
+         <div className="grid md:grid-cols-4 gap-6 mt-10">
+
+      {/* Risk Score */}
+     <div className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white p-6 rounded-2xl shadow-xl">
+      <p className="text-sm opacity-80">Risk Score</p>
+      <h3 className="text-3xl font-bold mt-2">{result.score}</h3>
+      </div>
+
+      {/* Recommended Loan */}
+      <div className="bg-gradient-to-br from-emerald-500 to-green-600 text-white p-6 rounded-2xl shadow-xl">
+        <p className="text-sm opacity-80">Loan Capacity</p>
+        <h3 className="text-3xl font-bold mt-2">
+      ₹{result.recommendedLoan.toLocaleString()}
+      </h3>
+      </div>
+
+       {/* Probability of Default */}
+       <div className="bg-gradient-to-br from-rose-500 to-red-600 text-white p-6 rounded-2xl shadow-xl">
+         <p className="text-sm opacity-80">Default Probability</p>
+          <h3 className="text-3xl font-bold mt-2">
+           {getLenderInsights(result).probabilityOfDefault}%
+             </h3>
                 </div>
 
-                {/* SCENARIO SIMULATOR */}
-<h3 style={{ marginTop: 30 }}>What-If Scenario Simulator</h3>
+                 {/* Model Confidence */}
+                 <div className="bg-gradient-to-br from-purple-600 to-fuchsia-600 text-white p-6 rounded-2xl shadow-xl">
+                  <p className="text-sm opacity-80">Model Confidence</p>
+                  <h3 className="text-3xl font-bold mt-2">
+                   {Math.round(getLenderInsights(result).confidenceScore)}%
+                   </h3>
+                   </div>
 
-<input
-  type="number"
-  name="revenueIncrease"
-  placeholder="Revenue Increase %"
-  onChange={handleScenarioChange}
-  style={{ marginBottom: 10, width: "100%", padding: 8 }}
-/>
+                    </div>
 
-<input
-  type="number"
-  name="expenseReduction"
-  placeholder="Expense Reduction %"
-  onChange={handleScenarioChange}
-  style={{ marginBottom: 10, width: "100%", padding: 8 }}
-/>
+                    <p className="text-center mt-2">
+                      Tier: {result.tier} | Recommended Loan: ₹{result.recommendedLoan}
+                    </p>
 
-<input
-  type="number"
-  name="emiReduction"
-  placeholder="EMI Reduction %"
-  onChange={handleScenarioChange}
-  style={{ marginBottom: 10, width: "100%", padding: 8 }}
-/>
+                    <div className="mt-8">{radarData && <Radar data={radarData} />}</div>
 
-<button
-  onClick={simulateScenario}
-  style={{
-    padding: 10,
-    backgroundColor: "#007bff",
-    color: "white",
-    border: "none",
-    borderRadius: 6
-  }}
->
-  Simulate Impact
-</button>
+                    <div className="mt-8 bg-white p-6 rounded-xl shadow">
+                      <h3 className="text-xl font-semibold mb-4">AI Advisory</h3>
+                      <div className="whitespace-pre-line">{result.explanation}</div>
+                    </div>
 
-{scenarioResult && (
-  <div style={{ marginTop: 20, background: "#e9f5ff", padding: 15 }}>
-    <h4>Scenario Risk Score: {scenarioResult.score}</h4>
-    <p>
-      Improvement:{" "}
-      {scenarioResult.score - result.score >= 0
-        ? `+${scenarioResult.score - result.score}`
-        : scenarioResult.score - result.score}
-    </p>
-    <p>
-      New Recommended Loan: ₹{scenarioResult.recommendedLoan}
-    </p>
-  </div>
-)} 
-              </>
-            )}
+                    <div className="mt-8 bg-white p-6 rounded-xl shadow">
+                      <h3 className="text-xl font-semibold mb-4">What-If Scenario Simulator</h3>
 
-            {/* LENDER VIEW */}
-            {viewMode === "lender" && (
-              <>
-                {(() => {
-                  const lender = getLenderInsights(result);
-                  return (
-                    <>
-                      <p><strong>Risk Score:</strong> {result.score}</p>
-                      <p><strong>Probability of Default:</strong> {lender.probabilityOfDefault}%</p>
-                      <p><strong>Approval:</strong> {lender.approval}</p>
-                      <p><strong>Confidence:</strong> {Math.round(lender.confidenceScore)}%</p>
-                    </>
-                  );
-                })()}
-              </>
-            )}
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <input type="number" name="revenueIncrease" placeholder="Revenue Increase %" onChange={handleScenarioChange} className="border p-3 rounded-lg" />
+                        <input type="number" name="expenseReduction" placeholder="Expense Reduction %" onChange={handleScenarioChange} className="border p-3 rounded-lg" />
+                        <input type="number" name="emiReduction" placeholder="EMI Reduction %" onChange={handleScenarioChange} className="border p-3 rounded-lg" />
+                      </div>
+
+                      <div className="text-center mt-4">
+                        <button onClick={simulateScenario} className="px-6 py-3 bg-blue-600 text-white rounded-xl">
+                          Simulate Impact
+                        </button>
+                      </div>
+
+                      {scenarioResult && (
+                        <div className="mt-4 bg-blue-50 p-4 rounded-lg">
+                          <p>Scenario Score: {scenarioResult.score}</p>
+                          <p>Improvement: {scenarioResult.score - result.score}</p>
+                          <p>New Loan: ₹{scenarioResult.recommendedLoan}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="text-center mt-6">
+                      <button onClick={downloadReport} className="px-6 py-3 bg-green-600 text-white rounded-xl">
+                        Download Loan Readiness Report (PDF)
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {viewMode === "lender" && (
+  <>
+    {(() => {
+      const lender = getLenderInsights(result);
+
+      return (
+        <div className="space-y-8">
+
+          {/* TOP METRIC CARDS */}
+          <div className="grid md:grid-cols-3 gap-6">
+
+            <div className="bg-white p-6 rounded-xl shadow">
+              <p className="text-gray-500 text-sm">Risk Score</p>
+              <h3 className="text-3xl font-bold mt-2">{result.score}</h3>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow">
+              <p className="text-gray-500 text-sm">Probability of Default</p>
+              <h3 className="text-3xl font-bold mt-2">
+                {lender.probabilityOfDefault}%
+              </h3>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow">
+              <p className="text-gray-500 text-sm">Approval Recommendation</p>
+              <h3 className="text-xl font-semibold mt-2">
+                {lender.approval}
+              </h3>
+            </div>
 
           </div>
+
+          {/* MODEL CONFIDENCE BAR */}
+          <div className="bg-white p-6 rounded-xl shadow">
+            <p className="text-gray-500 text-sm mb-3">
+              Model Confidence
+            </p>
+
+            <div className="w-full bg-gray-200 rounded-full h-4">
+              <div
+                className="bg-blue-600 h-4 rounded-full transition-all duration-500"
+                style={{ width: `${Math.round(lender.confidenceScore)}%` }}
+              ></div>
+            </div>
+
+            <p className="mt-2 text-sm text-gray-600">
+              {Math.round(lender.confidenceScore)}% structural reliability
+            </p>
+          </div>
+
+          {/* RED FLAG SECTION */}
+          <div className="bg-white p-6 rounded-xl shadow">
+            <p className="text-gray-500 text-sm mb-3">
+              Risk Flags
+            </p>
+
+            <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700">
+              {result.debtRatio > 0.6 && <li>High leverage exposure</li>}
+              {result.surplus <= 0 && <li>Negative monthly cashflow</li>}
+              {formData.volatility === "high" && <li>High revenue volatility</li>}
+
+              {result.debtRatio <= 0.6 &&
+                result.surplus > 0 &&
+                formData.volatility !== "high" && (
+                  <li>No major structural financial risks detected</li>
+                )}
+            </ul>
+          </div>
+
         </div>
-      )}
+      );
+    })()}
+  </>
+)}
+
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
     </div>
   );
 }

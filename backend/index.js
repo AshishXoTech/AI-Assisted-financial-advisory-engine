@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 
+import reportRoute from "./routes/reportRoute.js";
 import riskRoute from "./routes/riskRoute.js";
 import explainRoute from "./routes/explainRoute.js";
 
@@ -13,6 +14,7 @@ app.use(cors());
 app.use(express.json());
 app.use("/api/explain", explainRoute);
 app.use("/api/risk", riskRoute);
+app.use("/api/report", reportRoute);
 
 const PORT = 8000;
 
